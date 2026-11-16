@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - JobTrack</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body class="login-page">
+
+    <div class="job-form login-card">
+
+        <!-- JobTrack Logo -->
+        <div class="login-logo">
+            <span class="logo-icon">
+    <svg width="48" height="48" viewBox="0 0 48 48" fill="none"
+         xmlns="http://www.w3.org/2000/svg">
+        <rect width="48" height="48" rx="12" fill="#2563EB"/>
+        <rect x="11" y="18" width="26" height="19" rx="3"
+              stroke="white" stroke-width="2.5"/>
+        <path d="M18 18V14C18 12.9 18.9 12 20 12H28C29.1 12 30 12.9 30 14V18"
+              stroke="white" stroke-width="2.5"/>
+        <path d="M11 25H37M21 25V28H27V25"
+              stroke="white" stroke-width="2.5"/>
+    </svg>
+</span>
+            <h1>Job<span>Track</span></h1>
+        </div>
+
+        <p class="login-subtitle">
+            Track your applications. Prepare for success.
+        </p>
+
+        <form method="POST" action="/login">
+
+            <!-- Email -->
+            <label for="email">✉️ &nbsp; Email Address</label>
+
+            <input
+                type="email"
+                id="email"
+                name="email"
+                placeholder="Enter your email"
+                required
+            >
+
+            <!-- Password -->
+            <label for="password">🔒 &nbsp; Password</label>
+
+            <div class="password-wrapper">
+
+                <input
+                    type="password"
+                    id="password"
+                    name="password"
+                    placeholder="Enter your password"
+                    required
+                >
+
+                <button
+                    type="button"
+                    class="toggle-password"
+                    onclick="togglePassword()"
+                    aria-label="Show or hide password"
+                >
+                    👁
+                </button>
+
+            </div>
+
+            <!-- Login Button -->
+            <button type="submit" class="login-submit">
+                ➜ &nbsp; Login
+            </button>
+
+            <p class="forgot-link">
+                <a href="/forgot_password">Forgot Password?</a>
+            </p>
+
+        </form>
+
+        <div class="login-divider"></div>
+
+        <p class="register-link">
+            Don't have an account?
+            <a href="/register">Register here</a>
+        </p>
+
+    </div>
+
+    <script>
+        function togglePassword() {
+            const password = document.getElementById("password");
+
+            if (password.type === "password") {
+                password.type = "text";
+            } else {
+                password.type = "password";
+            }
+        }
+    </script>
+
+</body>
+</html>

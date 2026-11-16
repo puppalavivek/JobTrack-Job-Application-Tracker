@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Application Calendar</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<style>
+    .calendar-container {
+        max-width: 1000px;
+        margin: 30px auto;
+        padding: 25px;
+        background: white;
+        border-radius: 12px;
+    }
+    .calendar-container h1 {
+        margin-bottom: 20px;
+    }
+    .calendar-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .calendar-table th,
+    .calendar-table td {
+        padding: 14px;
+        border: 1px solid #ddd;
+        text-align: left;
+    }
+    .calendar-table th {
+        background: #f2f4f8;
+    }
+    .status {
+        font-weight: bold;
+    }
+    .back-button {
+        display: inline-block;
+        margin-bottom: 20px;
+    }
+</style>
+</head>
+<body>
+<div class="calendar-container">
+    <a href="{{ url_for('home') }}" class="back-button">
+        ← Back to Dashboard
+    </a>
+    <h1>📅 Application Calendar</h1>
+    <p>View your job applications and interview schedules.</p>
+    {% if jobs %}
+    <table class="calendar-table">
+        <thead>
+            <tr>
+                <th>Application Date</th>
+                <th>Interview Date</th>
+                <th>Interview Time</th>
+                <th>Company</th>
+                <th>Position</th>
+                <th>Status</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for job in jobs %}
+            <tr>
+                <td>{{ job["date"] or "Not available" }}</td>
+                <td>{{ job["interview_date"] or "Not scheduled" }}</td>
+                <td>{{ job["interview_time"] or "Not scheduled" }}</td>
+                <td>{{ job["company"] }}</td>
+                <td>{{ job["role"] }}</td>
+                <td class="status">{{ job["status"] }}</td>
+                <td>
+                    <a href="{{ url_for('view_job', id=job['id']) }}">
+                        View
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+        <p>No job applications found yet.</p>
+    {% endif %}
+</div>
+</body>
+</html>

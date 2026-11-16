@@ -1,0 +1,15 @@
+ven/
+ven_old/
+__pychache__/
+*.__pyc
+jobs.db
+uploads/*
+.env
+
+
+
+
+
+
+
+
