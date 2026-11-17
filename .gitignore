@@ -5,7 +5,16 @@ __pychache__/
 jobs.db
 uploads/*
 .env
+# Ignore virtual environment files
+**/venv/
+**/venv_old/
+**/__pycache__/
+*.pyc
+*.pyo
+pyvenv.cfg
 
+# Ignore Python temporary files
+.python_history
 
 
 

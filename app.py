@@ -18,12 +18,23 @@ from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 
-app.secret_key = os.environ.get("SECRET_KEY", "dev-only-change-this-key")
+app.secret_key = os.environ.get(
+    "SECRET_KEY",
+    "dev-only-change-this-key"
+)
 
 # Database configuration
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE_DIR, "jobs.db")
 
+DB_PATH = os.environ.get(
+    "DATABASE_PATH",
+    os.path.join(BASE_DIR, "jobs.db")
+)
+
+# Ensure database directory exists
+os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+
+# Upload configuration
 app.config["UPLOAD_FOLDER"] = os.path.join(BASE_DIR, "uploads")
 
 os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
@@ -49,66 +60,75 @@ def create_table():
 
     conn = get_db_connection()
 
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS jobs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            company TEXT NOT NULL,
-            role TEXT NOT NULL,
-            location TEXT,
-            date TEXT,
-            status TEXT
-        )
-    """)
-
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            email TEXT UNIQUE NOT NULL,
-            password TEXT NOT NULL
-        )
-    """)
-
-    job_columns = [
-        row["name"]
-        for row in conn.execute(
-            "PRAGMA table_info(jobs)"
-        ).fetchall()
-    ]
-
-    if "user_id" not in job_columns:
+    try:
         conn.execute("""
-            ALTER TABLE jobs
-            ADD COLUMN user_id INTEGER REFERENCES users(id)
+            CREATE TABLE IF NOT EXISTS jobs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                company TEXT NOT NULL,
+                role TEXT NOT NULL,
+                location TEXT,
+                date TEXT,
+                status TEXT
+            )
         """)
 
-    if "interview_date" not in job_columns:
         conn.execute("""
-            ALTER TABLE jobs
-            ADD COLUMN interview_date TEXT
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                email TEXT UNIQUE NOT NULL,
+                password TEXT NOT NULL
+            )
         """)
 
-    if "interview_time" not in job_columns:
-        conn.execute("""
-            ALTER TABLE jobs
-            ADD COLUMN interview_time TEXT
-        """)
+        job_columns = [
+            row["name"]
+            for row in conn.execute(
+                "PRAGMA table_info(jobs)"
+            ).fetchall()
+        ]
 
-    user_columns = [
-        row["name"]
-        for row in conn.execute(
-            "PRAGMA table_info(users)"
-        ).fetchall()
-    ]
+        if "user_id" not in job_columns:
+            conn.execute("""
+                ALTER TABLE jobs
+                ADD COLUMN user_id INTEGER REFERENCES users(id)
+            """)
 
-    if "profile_pic" not in user_columns:
-        conn.execute("""
-            ALTER TABLE users
-            ADD COLUMN profile_pic TEXT
-        """)
+        if "interview_date" not in job_columns:
+            conn.execute("""
+                ALTER TABLE jobs
+                ADD COLUMN interview_date TEXT
+            """)
 
-    conn.commit()
-    conn.close()
+        if "interview_time" not in job_columns:
+            conn.execute("""
+                ALTER TABLE jobs
+                ADD COLUMN interview_time TEXT
+            """)
+
+        user_columns = [
+            row["name"]
+            for row in conn.execute(
+                "PRAGMA table_info(users)"
+            ).fetchall()
+        ]
+
+        if "profile_pic" not in user_columns:
+            conn.execute("""
+                ALTER TABLE users
+                ADD COLUMN profile_pic TEXT
+            """)
+
+        conn.commit()
+
+    finally:
+        conn.close()
+
+
+# IMPORTANT:
+# Create the tables when this module is imported.
+# This is required for Render/Gunicorn.
+create_table()
 
 
 # Registration
@@ -131,37 +151,39 @@ def register():
 
         conn = get_db_connection()
 
-        existing_user = conn.execute(
-            "SELECT id FROM users WHERE email = ?",
-            (email,)
-        ).fetchone()
+        try:
+            existing_user = conn.execute(
+                "SELECT id FROM users WHERE email = ?",
+                (email,)
+            ).fetchone()
 
-        if existing_user:
-            conn.close()
-            return "This email is already registered."
+            if existing_user:
+                return "This email is already registered."
 
-        user_count = conn.execute(
-            "SELECT COUNT(*) FROM users"
-        ).fetchone()[0]
+            user_count = conn.execute(
+                "SELECT COUNT(*) FROM users"
+            ).fetchone()[0]
 
-        cursor = conn.execute(
-            """
-            INSERT INTO users (name, email, password)
-            VALUES (?, ?, ?)
-            """,
-            (name, email, hashed_password)
-        )
-
-        new_user_id = cursor.lastrowid
-
-        if user_count == 0:
-            conn.execute(
-                "UPDATE jobs SET user_id = ? WHERE user_id IS NULL",
-                (new_user_id,)
+            cursor = conn.execute(
+                """
+                INSERT INTO users (name, email, password)
+                VALUES (?, ?, ?)
+                """,
+                (name, email, hashed_password)
             )
 
-        conn.commit()
-        conn.close()
+            new_user_id = cursor.lastrowid
+
+            if user_count == 0:
+                conn.execute(
+                    "UPDATE jobs SET user_id = ? WHERE user_id IS NULL",
+                    (new_user_id,)
+                )
+
+            conn.commit()
+
+        finally:
+            conn.close()
 
         return redirect(url_for("login"))
 
@@ -179,12 +201,13 @@ def login():
 
         conn = get_db_connection()
 
-        user = conn.execute(
-            "SELECT * FROM users WHERE email = ?",
-            (email,)
-        ).fetchone()
-
-        conn.close()
+        try:
+            user = conn.execute(
+                "SELECT * FROM users WHERE email = ?",
+                (email,)
+            ).fetchone()
+        finally:
+            conn.close()
 
         if user and check_password_hash(user["password"], password):
 
@@ -210,12 +233,13 @@ def forgot_password():
 
         conn = get_db_connection()
 
-        user = conn.execute(
-            "SELECT * FROM users WHERE email = ?",
-            (email,)
-        ).fetchone()
-
-        conn.close()
+        try:
+            user = conn.execute(
+                "SELECT * FROM users WHERE email = ?",
+                (email,)
+            ).fetchone()
+        finally:
+            conn.close()
 
         if user:
             session["reset_email"] = email
@@ -248,13 +272,16 @@ def reset_password():
 
         conn = get_db_connection()
 
-        conn.execute(
-            "UPDATE users SET password = ? WHERE email = ?",
-            (hashed_password, session["reset_email"])
-        )
+        try:
+            conn.execute(
+                "UPDATE users SET password = ? WHERE email = ?",
+                (hashed_password, session["reset_email"])
+            )
 
-        conn.commit()
-        conn.close()
+            conn.commit()
+
+        finally:
+            conn.close()
 
         session.pop("reset_email", None)
 
@@ -272,50 +299,50 @@ def profile():
 
     conn = get_db_connection()
 
-    if request.method == "POST":
+    try:
+        if request.method == "POST":
 
-        name = request.form.get("name", "").strip()
+            name = request.form.get("name", "").strip()
 
-        if not name:
-            conn.close()
-            return "Name cannot be empty."
+            if not name:
+                return "Name cannot be empty."
 
-        profile_pic = request.files.get("profile_pic")
-
-        conn.execute(
-            "UPDATE users SET name = ? WHERE id = ?",
-            (name, session["user_id"])
-        )
-
-        session["user_name"] = name
-
-        if profile_pic and profile_pic.filename:
-
-            if not allowed_file(profile_pic.filename):
-                conn.close()
-                return "Please upload a valid image file."
-
-            filename = secure_filename(profile_pic.filename)
-
-            filename = f"user_{session['user_id']}_{filename}"
-
-            profile_pic.save(
-                os.path.join(app.config["UPLOAD_FOLDER"], filename)
-            )
+            profile_pic = request.files.get("profile_pic")
 
             conn.execute(
-                "UPDATE users SET profile_pic = ? WHERE id = ?",
-                (filename, session["user_id"])
+                "UPDATE users SET name = ? WHERE id = ?",
+                (name, session["user_id"])
             )
 
-        conn.commit()
+            session["user_name"] = name
 
-    user = conn.execute(
-        "SELECT * FROM users WHERE id = ?",
-        (session["user_id"],)
-    ).fetchone()
+            if profile_pic and profile_pic.filename:
 
-    conn.close()
+                if not allowed_file(profile_pic.filename):
+                    return "Please upload a valid image file."
+
+                filename = secure_filename(profile_pic.filename)
+
+                filename = f"user_{session['user_id']}_{filename}"
+
+                profile_pic.save(
+                    os.path.join(app.config["UPLOAD_FOLDER"], filename)
+                )
+
+                conn.execute(
+                    "UPDATE users SET profile_pic = ? WHERE id = ?",
+                    (filename, session["user_id"])
+                )
+
+            conn.commit()
+
+        user = conn.execute(
+            "SELECT * FROM users WHERE id = ?",
+            (session["user_id"],)
+        ).fetchone()
+
+    finally:
+        conn.close()
 
     return render_template("profile.html", user=user)
 
@@ -351,32 +378,34 @@ def change_password():
 
     conn = get_db_connection()
 
-    user = conn.execute(
-        "SELECT * FROM users WHERE id = ?",
-        (session["user_id"],)
-    ).fetchone()
+    try:
+        user = conn.execute(
+            "SELECT * FROM users WHERE id = ?",
+            (session["user_id"],)
+        ).fetchone()
 
-    if not check_password_hash(user["password"], current_password):
+        if not user or not check_password_hash(
+            user["password"], current_password
+        ):
+            return "Current password is incorrect."
+
+        if new_password != confirm_password:
+            return "New passwords do not match."
+
+        if len(new_password) < 8:
+            return "New password must contain at least 8 characters."
+
+        hashed_password = generate_password_hash(new_password)
+
+        conn.execute(
+            "UPDATE users SET password = ? WHERE id = ?",
+            (hashed_password, session["user_id"])
+        )
+
+        conn.commit()
+
+    finally:
         conn.close()
-        return "Current password is incorrect."
-
-    if new_password != confirm_password:
-        conn.close()
-        return "New passwords do not match."
-
-    if len(new_password) < 8:
-        conn.close()
-        return "New password must contain at least 8 characters."
-
-    hashed_password = generate_password_hash(new_password)
-
-    conn.execute(
-        "UPDATE users SET password = ? WHERE id = ?",
-        (hashed_password, session["user_id"])
-    )
-
-    conn.commit()
-    conn.close()
 
     return redirect(url_for("profile"))
 
@@ -399,22 +428,23 @@ def home():
 
     conn = get_db_connection()
 
-    jobs = conn.execute(
-        """
-        SELECT * FROM jobs
-        WHERE user_id = ?
-        ORDER BY id DESC
-        """,
-        (session["user_id"],)
-    ).fetchall()
+    try:
+        jobs = conn.execute(
+            """
+            SELECT * FROM jobs
+            WHERE user_id = ?
+            ORDER BY id DESC
+            """,
+            (session["user_id"],)
+        ).fetchall()
 
-    user = conn.execute(
-        "SELECT * FROM users WHERE id = ?",
-        (session["user_id"],)
-    ).fetchone()
+        user = conn.execute(
+            "SELECT * FROM users WHERE id = ?",
+            (session["user_id"],)
+        ).fetchone()
 
-    conn.close()
-    from datetime import date, timedelta
+    finally:
+        conn.close()
 
     today = date.today()
     tomorrow = today + timedelta(days=1)
@@ -423,16 +453,21 @@ def home():
     tomorrow_interviews = []
 
     for job in jobs:
+
         interview_date = job["interview_date"]
 
         if interview_date:
+
             try:
                 interview_day = date.fromisoformat(interview_date)
 
                 if interview_day >= today:
+
                     days_left = (interview_day - today).days
+
                     interview_card = dict(job)
                     interview_card["days_left"] = days_left
+
                     upcoming_interviews.append(interview_card)
 
                 if interview_day == tomorrow:
@@ -483,36 +518,39 @@ def add_job():
         company = request.form.get("company")
         role = request.form.get("role")
         location = request.form.get("location")
-        date = request.form.get("date")
+        job_date = request.form.get("date")
         interview_date = request.form.get("interview_date")
         interview_time = request.form.get("interview_time")
         status = request.form.get("status")
 
         conn = get_db_connection()
 
-        conn.execute(
-            """
-            INSERT INTO jobs
-            (
-                company, role, location, date,
-                interview_date, interview_time, status, user_id
+        try:
+            conn.execute(
+                """
+                INSERT INTO jobs
+                (
+                    company, role, location, date,
+                    interview_date, interview_time, status, user_id
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    company,
+                    role,
+                    location,
+                    job_date,
+                    interview_date,
+                    interview_time,
+                    status,
+                    session["user_id"]
+                )
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                company,
-                role,
-                location,
-                date,
-                interview_date,
-                interview_time,
-                status,
-                session["user_id"]
-            )
-        )
 
-        conn.commit()
-        conn.close()
+            conn.commit()
+
+        finally:
+            conn.close()
 
         return redirect(url_for("home"))
 
@@ -528,15 +566,17 @@ def view_job(id):
 
     conn = get_db_connection()
 
-    job = conn.execute(
-        """
-        SELECT * FROM jobs
-        WHERE id = ? AND user_id = ?
-        """,
-        (id, session["user_id"])
-    ).fetchone()
+    try:
+        job = conn.execute(
+            """
+            SELECT * FROM jobs
+            WHERE id = ? AND user_id = ?
+            """,
+            (id, session["user_id"])
+        ).fetchone()
 
-    conn.close()
+    finally:
+        conn.close()
 
     if job is None:
         return "Job not found.", 404
@@ -555,17 +595,20 @@ def update_status(id):
 
     conn = get_db_connection()
 
-    conn.execute(
-        """
-        UPDATE jobs
-        SET status = ?
-        WHERE id = ? AND user_id = ?
-        """,
-        (status, id, session["user_id"])
-    )
+    try:
+        conn.execute(
+            """
+            UPDATE jobs
+            SET status = ?
+            WHERE id = ? AND user_id = ?
+            """,
+            (status, id, session["user_id"])
+        )
 
-    conn.commit()
-    conn.close()
+        conn.commit()
+
+    finally:
+        conn.close()
 
     return redirect(url_for("view_job", id=id))
 
@@ -579,59 +622,59 @@ def edit_job(id):
 
     conn = get_db_connection()
 
-    job = conn.execute(
-        """
-        SELECT * FROM jobs
-        WHERE id = ? AND user_id = ?
-        """,
-        (id, session["user_id"])
-    ).fetchone()
-
-    if job is None:
-        conn.close()
-        return "Job not found.", 404
-
-    if request.method == "POST":
-
-        company = request.form.get("company")
-        role = request.form.get("role")
-        location = request.form.get("location")
-        date = request.form.get("date")
-        interview_date = request.form.get("interview_date")
-        interview_time = request.form.get("interview_time")
-        status = request.form.get("status")
-
-        conn.execute(
+    try:
+        job = conn.execute(
             """
-            UPDATE jobs
-            SET company = ?,
-                role = ?,
-                location = ?,
-                date = ?,
-                interview_date = ?,
-                interview_time = ?,
-                status = ?
+            SELECT * FROM jobs
             WHERE id = ? AND user_id = ?
             """,
-            (
-                company,
-                role,
-                location,
-                date,
-                interview_date,
-                interview_time,
-                status,
-                id,
-                session["user_id"]
+            (id, session["user_id"])
+        ).fetchone()
+
+        if job is None:
+            return "Job not found.", 404
+
+        if request.method == "POST":
+
+            company = request.form.get("company")
+            role = request.form.get("role")
+            location = request.form.get("location")
+            job_date = request.form.get("date")
+            interview_date = request.form.get("interview_date")
+            interview_time = request.form.get("interview_time")
+            status = request.form.get("status")
+
+            conn.execute(
+                """
+                UPDATE jobs
+                SET company = ?,
+                    role = ?,
+                    location = ?,
+                    date = ?,
+                    interview_date = ?,
+                    interview_time = ?,
+                    status = ?
+                WHERE id = ? AND user_id = ?
+                """,
+                (
+                    company,
+                    role,
+                    location,
+                    job_date,
+                    interview_date,
+                    interview_time,
+                    status,
+                    id,
+                    session["user_id"]
+                )
             )
-        )
 
-        conn.commit()
+            conn.commit()
+
+            return redirect(url_for("home"))
+
+    finally:
         conn.close()
-
-        return redirect(url_for("home"))
-
-    conn.close()
 
     return render_template("edit_job.html", job=job)
 
@@ -645,16 +688,19 @@ def delete_job(id):
 
     conn = get_db_connection()
 
-    conn.execute(
-        """
-        DELETE FROM jobs
-        WHERE id = ? AND user_id = ?
-        """,
-        (id, session["user_id"])
-    )
+    try:
+        conn.execute(
+            """
+            DELETE FROM jobs
+            WHERE id = ? AND user_id = ?
+            """,
+            (id, session["user_id"])
+        )
 
-    conn.commit()
-    conn.close()
+        conn.commit()
+
+    finally:
+        conn.close()
 
     return redirect(url_for("home"))
 
@@ -668,18 +714,20 @@ def export_jobs():
 
     conn = get_db_connection()
 
-    jobs = conn.execute(
-        """
-        SELECT company, role, location, date,
-               interview_date, interview_time, status
-        FROM jobs
-        WHERE user_id = ?
-        ORDER BY id DESC
-        """,
-        (session["user_id"],)
-    ).fetchall()
+    try:
+        jobs = conn.execute(
+            """
+            SELECT company, role, location, date,
+                   interview_date, interview_time, status
+            FROM jobs
+            WHERE user_id = ?
+            ORDER BY id DESC
+            """,
+            (session["user_id"],)
+        ).fetchall()
 
-    conn.close()
+    finally:
+        conn.close()
 
     output = io.StringIO()
 
@@ -728,30 +776,34 @@ def calendar():
 
     conn = get_db_connection()
 
-    jobs = conn.execute(
-        """
-        SELECT id, company, role, date,
-               interview_date, interview_time, status
-        FROM jobs
-        WHERE user_id = ?
-        ORDER BY
-            CASE
-                WHEN interview_date IS NULL OR interview_date = ''
-                THEN date
-                ELSE interview_date
-            END
-        """,
-        (session["user_id"],)
-    ).fetchall()
+    try:
+        jobs = conn.execute(
+            """
+            SELECT id, company, role, date,
+                   interview_date, interview_time, status
+            FROM jobs
+            WHERE user_id = ?
+            ORDER BY
+                CASE
+                    WHEN interview_date IS NULL OR interview_date = ''
+                    THEN date
+                    ELSE interview_date
+                END
+            """,
+            (session["user_id"],)
+        ).fetchall()
 
-    conn.close()
+    finally:
+        conn.close()
 
     return render_template("calendar.html", jobs=jobs)
 
 
-# Run application
+# Run application locally
 if __name__ == "__main__":
 
-    create_table()
-
-    app.run(debug=True)
+    app.run(
+        host="0.0.0.0",
+        port=int(os.environ.get("PORT", 5000)),
+        debug=False
+    )
