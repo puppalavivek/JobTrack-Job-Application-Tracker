@@ -3,6 +3,16 @@ JobTrack – Job Application Tracker
 
 Try the application:
 https://jobtrack-job-application-tracker.onrender.com
+## 📸 Application Screenshots
+
+### Login Page
+![Login](screenshots/login.png)
+
+### Dashboard
+![Dashboard](screenshots/dashboard.png)
+
+### Interview Reminders & Applications
+![Interviews](screenshots/interviews.png)
 
 ## 📌 Project Overview
 
