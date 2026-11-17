@@ -1,4 +1,24 @@
 JobTrack – Job Application Tracker
+## 🌐 Live Demo
+
+Try the application:
+https://jobtrack-job-application-tracker.onrender.com
+
+## 📌 Project Overview
+
+JobTrack is a Flask-based web application
+that helps job seekers manage applications,
+track interview schedules and monitor job progress.
+
+## 🚀 Key Features
+
+- User Registration and Login
+- Add, Edit and Delete Applications
+- Interview Reminders
+- Calendar View
+- Dashboard Analytics
+- Search and Filter Jobs
+- CSV Export
 
 JobTrack is a Flask-based web application that helps users organize and manage their job applications in one place.
 
