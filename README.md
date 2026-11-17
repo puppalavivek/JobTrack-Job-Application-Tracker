@@ -11,8 +11,8 @@ https://jobtrack-job-application-tracker.onrender.com
 ### Dashboard
 ![Dashboard](screenshots/dashboard.png)
 
-### Interview Reminders & Applications
-![Interviews](screenshots/interviews.png)
+### Applications
+![IApplications](screenshots/applications.png)
 
 ## 📌 Project Overview
 
